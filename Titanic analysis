@@ -1,0 +1,83 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.preprocessing import StandardScaler
+
+# Loading the dataset
+data = pd.read_csv('tested.csv')
+
+# Handling missing data (if any)
+data.dropna(inplace=True)
+
+# Encoding categorical variables
+data = pd.get_dummies(data, columns=['Sex', 'Embarked'], drop_first=True)
+
+# Checking the column names after encoding
+print(data.columns)
+
+# Ensuring 'Sex' and 'Embarked' are present in the DataFrame
+if 'Sex' not in data.columns or 'Embarked' not in data.columns:
+    print("Error: 'Sex' or 'Embarked' columns not found after encoding.")
+    exit()
+
+# Creating a new feature 'has_family'
+data['has_family'] = (data['SibSp'] + data['Parch']).apply(lambda x: 1 if x > 0 else 0)
+
+# Selecting relevant features
+X = data[['Pclass', 'Age', 'Fare', 'Sex_male', 'has_family', 'Embarked_Q', 'Embarked_S']]
+
+# Target variable
+y = data['Survived']
+
+# Normalizing numerical features
+scaler = StandardScaler()
+X[['Age', 'Fare']] = scaler.fit_transform(X[['Age', 'Fare']])
+
+# Spliting data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Handling missing values in the testing dataset
+X_test_new = X_test.fillna(X_train.mean())  # Filling missing values with mean of training data
+
+# Creating and training the model
+model = LogisticRegression()
+model.fit(X_train, y_train)
+
+# Making predictions on the new data
+y_pred_new = model.predict(X_test_new)
+
+# New dataset for testing 
+new_data = pd.read_csv('Titanic-Dataset.csv')
+
+# Performing the same preprocessing steps on the new dataset
+new_data = pd.get_dummies(new_data, columns=['Sex', 'Embarked'], drop_first=True)
+new_data['has_family'] = (new_data['SibSp'] + new_data['Parch']).apply(lambda x: 1 if x > 0 else 0)
+
+# Handling missing values in the new dataset
+new_data = new_data.fillna(X_train.mean())  # Filling missing values with mean of training data
+
+# Selecting features for testing
+X_test_new = new_data[['Pclass', 'Age', 'Fare', 'Sex_male', 'has_family', 'Embarked_Q', 'Embarked_S']]
+
+# Getting PassengerId and Survived for outcomes
+passenger_ids = new_data['PassengerId']
+y_test_new = new_data['Survived']
+
+# Making predictions on the new data
+y_pred_new = model.predict(X_test_new)
+
+# Creating a DataFrame with PassengerId, Survival status, and Prediction outcomes
+result_df = pd.DataFrame({'PassengerId': passenger_ids, 'Actual_Survived': y_test_new, 'Survival_Prediction': y_pred_new})
+
+# Printing the result DataFrame
+print("\nPrediction Outcomes:")
+print(result_df)
+
+# Evaluating the model on the testing set
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+classification_rep = classification_report(y_test, y_pred)
+
+print("\nModel Accuracy on Testing Set:", accuracy)
+print("Classification Report on Testing Set:\n", classification_rep)
